@@ -33,7 +33,7 @@ def insert_pdf(pdf_path, openai_api_key, pinecone_api_key):
                 "content": [
                     {
                     "type": "text",
-                    "text": f"Use this context: {text if text else 'No context in this query'}, and these tables {'\\n\\n'.join([table.to_string(index=False) for table in tables]) if tables else 'No tables in this query'} alongside the images to answer this question {question}"
+                    "text": f"Use this context: {text if text else 'No context in this query'}, and these tables {' '.join([table.to_string(index=False) for table in tables]).replace('\n', ' ') if tables else 'No tables in this query'} alongside the images to answer this question {question}"
                     },
                 
                 ]
