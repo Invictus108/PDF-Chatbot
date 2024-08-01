@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>PDF Chatbot</title>
+    </head>
+    <body>
+        <h1 class="center">PDF Chatbot</h1>
+        <form class="center" id="uploadForm" action="/insert" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="file" name="file" placeholder="Add New PDF" type="file" accept=".pdf" required>
+                <br><br>
+            </div>
+            <button form ="uploadForm" class="btn btn-primary" type="submit">Submit</button>
+        </form>
+
+        <br><br>
+        
+        <div class="vertical-scroll-box">
+            <p style="text-align: left;">{{ data | safe }}</p>
+        </div>
+        
+        <br><br>
+        
+        <form class="center" id="questionForm" action="/" method="post">
+            <div class="mb-3">
+                <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="question" name="question" placeholder="What do you want to ask?" type="text">
+                <input type="hidden" id="convo" name="convo" value="{{ convo | safe}}">
+                <input type="hidden" id="context" name="context" value="{{ context | safe}}">
+                <br><br>
+            </div>
+            <button form="questionForm" class="btn btn-primary" type="submit">Submit</button>
+        </form>
+    
+          
+    </body>
+</html>
+
+<style>
+    .center {
+        text-align: center;
+    }
+
+    .vertical-scroll-box {
+            width: 100%;  /* Adjust the width as needed */
+            height: 60vh; /* Adjust the height as needed */
+            border: 3px solid #ccc;
+            overflow-y: scroll; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Disable horizontal scrolling */
+            white-space: normal; /* Allow text to wrap */
+            overflow-wrap: break-word; /* Break long words */
+            text-align: center;
+        
+        }
+
+    
+
+    
+</style>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', function(event) {
+        let fileInput = document.getElementById('file');
+        let file = fileInput.files[0];
+        if (file && file.type !== 'application/pdf') {
+            event.preventDefault();
+            alert('Please upload a valid PDF file.');
+        }
+    });
+</script>
+

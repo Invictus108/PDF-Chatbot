@@ -1,0 +1,14 @@
+flask
+langchain
+langchain-community
+pinecone-client
+requests
+aiohttp
+asyncio
+python-dotenv
+PyMuPDF
+pandas
+Pillow
+tabula-py
+base64
+gunicorn
