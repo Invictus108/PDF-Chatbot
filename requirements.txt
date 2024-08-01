@@ -10,5 +10,5 @@ PyMuPDF
 pandas
 Pillow
 tabula-py
-base64
+pybase64
 gunicorn
