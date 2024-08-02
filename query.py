@@ -69,6 +69,8 @@ def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
     docs_content = []
     while len(docs) < top_k:
         similar_doc = index.query(vector=embedding_model.embed_query(question), filter={'contents' : {'$nin' : docs_content}}, top_k=1, include_metadata=True)
+        if len(similar_doc['matches']) == 0:
+            break
         docs.append(similar_doc['matches'][0])
         docs_content.append(similar_doc['matches'][0]['metadata']['content'])
 
