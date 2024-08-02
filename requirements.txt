@@ -13,3 +13,4 @@ tabula-py
 pybase64
 gunicorn
 openai
+tiktoken
