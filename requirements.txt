@@ -12,3 +12,4 @@ Pillow
 tabula-py
 pybase64
 gunicorn
+openai
