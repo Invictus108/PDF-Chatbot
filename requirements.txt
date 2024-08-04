@@ -14,4 +14,3 @@ pybase64
 gunicorn
 openai
 tiktoken
-html
