@@ -61,7 +61,7 @@ def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
         '''
 
     context += question + "<br>"
-    convo += "User: " + question + "<br"
+    convo += "User: " + question + "<br>"
 
     # fetch similar docs using query as search vector
     top_k=5
