@@ -3,6 +3,7 @@ from query import query_AI
 from flask import Flask, flash, redirect, render_template, request, session
 import os
 from dotenv import load_dotenv
+import html
 
 load_dotenv()
 
@@ -26,11 +27,7 @@ def main():
         convo, context = query_AI(context, convo, question, os.getenv('OPENAI_API_KEY'), os.getenv('PINECONE_API_KEY'))
 
         # Replace newline characters with <br> for HTML rendering
-        text = convo.replace('\n', '<br>')
-        text = text.replace('<<', '&lt;&lt;').replace('>>', '&gt;&gt;')
-        text = text.replace('&', '&amp;')
-        text = text.replace('<', '&lt;').replace('>', '&gt;')
-        convo = text.replace('"', '&quot;').replace("'", '&apos;') + "<br>"
+        convo = html.escape(convo).replace('\n', '<br>') + "<br>"
 
         return render_template("index.html", data=convo, convo=convo, context=context)
 
@@ -52,13 +49,9 @@ def insert():
             
             # Call insert_pdf function
             summary = insert_pdf(file_path, os.getenv('OPENAI_API_KEY'), os.getenv('PINECONE_API_KEY'))
-            
+
             # Replace newline characters with <br> for HTML rendering
-            text = summary.replace('\n', '<br>')
-            text = text.replace('<<', '&lt;&lt;').replace('>>', '&gt;&gt;')
-            text = text.replace('&', '&amp;')
-            text = text.replace('<', '&lt;').replace('>', '&gt;')
-            summary = text.replace('"', '&quot;').replace("'", '&apos;') + "<br>"
+            summary = html.escape(summary).replace('\n', '<br>') + "<br>"
 
             return render_template("index.html", data=summary, convo=summary, context=summary)
         else:
