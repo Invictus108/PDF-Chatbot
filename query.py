@@ -60,8 +60,8 @@ def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
                 Be as kind and helpful as possible, and make sure to provide sources.\n
         '''
 
-    context += question + "\n"
-    convo += "User: " + question + "\n"
+    context += question + "<br>"
+    convo += "User: " + question + "<br"
 
     # fetch similar docs using query as search vector
     top_k=5
@@ -103,7 +103,7 @@ def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
     answer = response.json()['choices'][0]['message']['content']
 
     # add answer to convo string
-    convo += "Agent: " + answer + "\n"
+    convo += "Agent: " + answer + "<br>"
 
     # remove extra
     context = context[:-len_extra]
