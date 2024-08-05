@@ -27,7 +27,7 @@ def main():
         convo, context = query_AI(context, convo, question, os.getenv('OPENAI_API_KEY'), os.getenv('PINECONE_API_KEY'))
 
         # Replace newline characters with <br> for HTML rendering
-        convo = html.escape(convo).replace('\n', '<br>') #+ "<br>"
+        convo = html.escape(convo, quote=True).replace('\n', '<br>') + "<br>"
 
         return render_template("index.html", data=convo, convo=convo, context=context)
 
@@ -51,7 +51,7 @@ def insert():
             summary = insert_pdf(file_path, os.getenv('OPENAI_API_KEY'), os.getenv('PINECONE_API_KEY'))
 
             # Replace newline characters with <br> for HTML rendering
-            summary = html.escape(summary).replace('\n', '<br>') #+ "<br>"
+            summary = html.escape(summary, quote=True).replace('\n', '<br>') + "<br>"
 
             return render_template("index.html", data=summary, convo=summary, context=summary)
         else:
