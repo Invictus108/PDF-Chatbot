@@ -39,7 +39,6 @@ This project is a Python Flask web application that leverages the power of Pinec
 - **Flask**: For building the backend web application.
 - **Pinecone**: For vector storage and retrieval of document embeddings.
 - **ChatGPT API**: For generating text embeddings and enabling natural language understanding.
-- **PyPDF2** or similar libraries: For extracting text from PDF documents.
 
 ## Installation and Setup
 
