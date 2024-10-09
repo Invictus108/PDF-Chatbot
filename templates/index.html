@@ -1,70 +1,146 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>PDF Chatbot</title>
-    </head>
-    <body>
-        <h1 class="center">PDF Chatbot</h1>
-        <form class="center" id="uploadForm" action="/insert" method="post" enctype="multipart/form-data">
-            <div class="mb-3">
-                <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="file" name="file" placeholder="Add New PDF" type="file" accept=".pdf" required>
-                <br><br>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Chatbot</title>
+    <!-- Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(to right, #ece9e6, #ffffff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            background-color: #343a40;
+        }
+        .navbar-brand {
+            color: #fff !important;
+            font-weight: bold;
+        }
+        h1, h2 {
+            color: #343a40;
+            margin-top: 20px;
+        }
+        .form-container {
+            margin-top: 50px;
+        }
+        .vertical-scroll-box {
+            width: 100%;
+            height: 60vh;
+            border: 1px solid #ccc;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            white-space: normal;
+            overflow-wrap: break-word;
+            padding: 20px;
+            background-color: #f8f9fa;
+            text-align: left;
+            margin-top: 30px;
+        }
+        footer {
+            margin-top: auto;
+            background-color: #343a40;
+            color: #fff;
+            padding: 10px 0;
+        }
+        .btn-custom {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+        }
+        .btn-custom:hover {
+            background-color: #0056b3;
+            color: #fff;
+        }
+        .file-label {
+            cursor: pointer;
+        }
+        .custom-file-input:lang(en) ~ .custom-file-label::after {
+            content: "Browse";
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg">
+        <a class="navbar-brand" href="#">PDF Chatbot</a>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container form-container">
+        <h1 class="text-center">Upload Your PDF</h1>
+        <form id="uploadForm" action="/insert" method="post" enctype="multipart/form-data" class="mt-4">
+            <div class="form-group row justify-content-center">
+                <div class="col-md-6">
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="file" name="file" accept=".pdf" required>
+                        <label class="custom-file-label file-label" for="file"><i class="fa fa-file-pdf-o"></i> Choose PDF</label>
+                    </div>
+                </div>
             </div>
-            <button form ="uploadForm" class="btn btn-primary" type="submit">Submit</button>
+            <div class="text-center">
+                <button form="uploadForm" class="btn btn-custom mt-3" type="submit"><i class="fa fa-upload"></i> Submit</button>
+            </div>
         </form>
 
-        <br><br>
-        
         <div class="vertical-scroll-box">
-            <p style="text-align: left;">{{ data | safe }}</p>
+            <p>{{ data | safe }}</p>
         </div>
-        
-        <br><br>
-        
-        <form class="center" id="questionForm" action="/" method="post">
-            <div class="mb-3">
-                <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="question" name="question" placeholder="What do you want to ask?" type="text">
-                <input type="hidden" id="convo" name="convo" value="{{ convo | safe}}">
-                <input type="hidden" id="context" name="context" value="{{ context | safe}}">
-                <br><br>
+
+        <h2 class="text-center mt-5">Ask a Question</h2>
+        <form id="questionForm" action="/" method="post" class="mt-4">
+            <div class="form-group row justify-content-center">
+                <div class="col-md-6">
+                    <input autocomplete="off" class="form-control" id="question" name="question" placeholder="What do you want to ask?" type="text" required>
+                    <input type="hidden" id="convo" name="convo" value="{{ convo | safe }}">
+                    <input type="hidden" id="context" name="context" value="{{ context | safe }}">
+                </div>
             </div>
-            <button form="questionForm" class="btn btn-primary" type="submit">Submit</button>
+            <div class="text-center">
+                <button form="questionForm" class="btn btn-custom mt-3" type="submit"><i class="fa fa-paper-plane"></i> Submit</button>
+            </div>
         </form>
-    
-          
-    </body>
+        <br>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center">
+        <div class="container">
+            <span>&copy; 2024 PDF Chatbot. All rights reserved.</span>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <!-- jQuery and Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Custom JS -->
+    <script>
+        // Update the label of the file input when a file is selected
+        $('#file').on('change', function() {
+            var fileName = $(this).val().split('\\').pop();
+            $(this).next('.file-label').html('<i class="fa fa-file-pdf-o"></i> ' + fileName);
+        });
+
+        // Validate file type on form submission
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            let fileInput = document.getElementById('file');
+            let file = fileInput.files[0];
+            if (file && file.type !== 'application/pdf') {
+                event.preventDefault();
+                alert('Please upload a valid PDF file.');
+            }
+        });
+    </script>
+</body>
 </html>
-
-<style>
-    .center {
-        text-align: center;
-    }
-
-    .vertical-scroll-box {
-            width: 100%;  /* Adjust the width as needed */
-            height: 60vh; /* Adjust the height as needed */
-            border: 3px solid #ccc;
-            overflow-y: scroll; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Disable horizontal scrolling */
-            white-space: normal; /* Allow text to wrap */
-            overflow-wrap: break-word; /* Break long words */
-            text-align: center;
-        
-        }
-
-    
-
-    
-</style>
-
-<script>
-    document.getElementById('uploadForm').addEventListener('submit', function(event) {
-        let fileInput = document.getElementById('file');
-        let file = fileInput.files[0];
-        if (file && file.type !== 'application/pdf') {
-            event.preventDefault();
-            alert('Please upload a valid PDF file.');
-        }
-    });
-</script>
-

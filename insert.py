@@ -1,63 +1,75 @@
-from pdf_parse import parse_pdf
+import sys
+from pdf_parse import parse_pdf, image_to_base64
 import os
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import openai
 from langchain_community.embeddings.openai import OpenAIEmbeddings
 from pinecone import Pinecone
-import requests
 import aiohttp
 import asyncio
 import uuid
+import instructor
+from pydantic import BaseModel
+import json
+from openai import OpenAI
 
 def insert_pdf(pdf_path, openai_api_key, pinecone_api_key):
-    text, images = parse_pdf(pdf_path)
+    # parse pdf
+    text, images = parse_pdf(pdf_path, pages=True)
 
+    # get keys
     os.environ['OPENAI_API_KEY'] = openai_api_key
     os.environ['PINECONE_API_KEY'] = pinecone_api_key
+
+   
+    # Initialize the instructor client
+    client = instructor.from_openai(OpenAI())
 
     # define embeddings
     embedding_model = OpenAIEmbeddings(
         model="text-embedding-3-small"
     )
 
-    def make_json(text, images, tables,  question, api_key, max_tokens = 1000):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-            }  
-        
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": [
+    # define make json funtion for formatting data for instructor client
+    def make_json(text, images, question):
+        messages = [
+            {
+            "role": "user",
+            "content": [
                 {
-                "role": "user",
-                "content": [
-                    {
-                    "type": "text",
-                    "text": f"Use this context: {text if text else 'No context in this query'}, and these tables {'\n\n'.join([table.to_string(index=False) for table in tables]) if tables else 'No tables in this query'} alongside the images to answer this question {question}"
-                    },
-                
-                ]
-                }
-            ],
-            "max_tokens": max_tokens
-        }
-        
+                "type": "text",
+                "text": f"Use this context: {text if text else "No context in this query"}, alongside the images to answer this question {question}"
+                },
+            
+            ]
+            }
+        ]
+    
         for image in images:
-            payload["messages"][0]['content'].append({
+            messages[0]['content'].append({
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{image}"
+                        "url": f"data:image/jpeg;base64,{image_to_base64(image)}"
                     },
                     
             })
 
-        return headers, payload
+        return messages
+
+
+    # template for summary
+    class Summary(BaseModel):
+        summary: str
 
     # get original summary from chatGPT. Label Images and Tables
     query = "Summerize the PDF"
-    headers, payload = make_json(text, images, None, query, os.getenv('OPENAI_API_KEY'))
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-    summary = response.json()['choices'][0]['message']['content']
+    message = make_json(text, images, query)
+    response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                response_model=Summary,
+                messages=message
+            )
+    summary = response.summary + "\n"
 
     # chunk text data for embeddings
     def chunk_data(text, chunk_size=1000, chunk_overlap=200):
@@ -70,32 +82,38 @@ def insert_pdf(pdf_path, openai_api_key, pinecone_api_key):
 
     split_docs = chunk_data(text)
 
+    # template for image summaries
+    class Image_Response(BaseModel):
+        summary: str
+        question_1: str
+        question_2: str
+        question_3: str
+        question_4: str
 
     # async get image summaries
     async def get_image_summaries(images):
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            for image in images:
-                query = "Provide a short summary of the image and 5 specific questions it can be used to answer. Seperate each individual entry with four dashes (----)."
-                headers, payload = make_json(None, [image], None, query, os.getenv('OPENAI_API_KEY'), max_tokens=2000)
-                tasks.append(fetch_summary(session, headers, payload))
+        tasks = []
+        for image in images:
+            query = "Provide a short summary of the image and 4 specific questions about data in the presentation that would be asked by a business analyst. Seperate each individual entry with four dashes (----). Ignore text and only focus on images and tables."
+            message = make_json(None, [image], query)
+            tasks.append(fetch_summary(message))
+        
+        return await asyncio.gather(*tasks)
             
-            responses = await asyncio.gather(*tasks)
-            
-            for response_str in responses:
-                response_arr = response_str.split('----')
-                if response_arr[-1] == '':
-                    response_arr = response_arr[:-1]
-                image_summaries.append(response_arr)
 
-    async def fetch_summary(session, headers, payload):
-        async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload) as response:
-            response.raise_for_status()
-            response_data = await response.json()
-            return response_data['choices'][0]['message']['content']
+    async def fetch_summary(messages):
+        # Using the instructor client to extract structured data
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4o-mini",
+            response_model=Image_Response,
+            messages=messages
+        )
+        
+        return [response.summary, response.question_1, response.question_2, response.question_3, response.question_4]
+        
 
-    image_summaries = []
-    asyncio.run(get_image_summaries(images))
+    image_summaries = asyncio.run(get_image_summaries(images))
 
     assert len(image_summaries) == len(images)
 
@@ -113,8 +131,6 @@ def insert_pdf(pdf_path, openai_api_key, pinecone_api_key):
     for part in image_summaries:
         image_embeddings.append(get_embeddings(part))
 
-
-    # insert data into pinecone 
     # initialize
     index_name = "pdf-chatbot"
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
@@ -161,10 +177,9 @@ def insert_pdf(pdf_path, openai_api_key, pinecone_api_key):
     asyncio.run(insert_vectors_main(index, text_embeddings, text_metadata))
 
     # insert image vectors
-    images_metadata = [{"source": pdf_path, "type": "image", "content": i} for i in images]
+    images_metadata = [{"source": pdf_path + ":" + str(i), "type": "image", "content": i} for i in images]
     asyncio.run(insert_vectors_main(index, image_embeddings, images_metadata))
 
     return summary
-
 
 

@@ -1,9 +1,11 @@
 import os
-import requests
-import os
 from langchain_community.embeddings.openai import OpenAIEmbeddings
 from pinecone import Pinecone
-import requests
+import instructor
+from pydantic import BaseModel
+import json
+from openai import OpenAI
+from pdf_parse import image_to_base64
 
 def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
     os.environ['OPENAI_API_KEY'] = openai_api_key
@@ -14,101 +16,100 @@ def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
     index = pc.Index(index_name)
 
+    # Initialize the instructor client
+    client = instructor.from_openai(OpenAI())
+
     # define embeddings
     embedding_model = OpenAIEmbeddings(
         model="text-embedding-3-small"
     )
 
-    def make_json(text, images, tables,  question, api_key, max_tokens = 1000):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-            }  
-        
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": [
+    # define make json funtion for formatting data for instructor client
+    def make_json(text, images, question):
+        messages = [
+            {
+            "role": "user",
+            "content": [
                 {
-                "role": "user",
-                "content": [
-                    {
-                    "type": "text",
-                    "text": f"Use this context: {text if text else "No context in this query"}, and these tables {"\n\n".join([table.to_string(index=False) for table in tables]) if tables else "No tables in this query"} alongside the images to answer this question {question}"
-                    },
-                
-                ]
-                }
-            ],
-            "max_tokens": max_tokens
+                "type": "text",
+                "text": f"Use this context: {text if text else "No context in this query"}alongside the images to answer this question {question}"
+                },
+            
+            ]
             }
-        
+        ]
+    
         for image in images:
-            payload["messages"][0]['content'].append({
+            messages[0]['content'].append({
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{image}"
+                        "url": f"data:image/jpeg;base64,{image_to_base64(image)}"
                     },
                     
             })
 
-        return headers, payload
+        return messages
 
     if context is None:
         context = '''
-                You will be engaging in a conversation as a professional analyst, using data to answer questions.
-                You will be provided text, images and tables for context as the conversation contiues in order to best respond.
-                Be as kind and helpful as possible, and make sure to provide sources.\n
-        '''
-
-    context += question + "<br>"
-    convo += "User: " + question + "<br>"
+            You will be engaging in a conversation as a professional analyst, using data to answer questions.
+            You will be provided text, images and tables for context as the conversation contiues in order to best respond.
+            Be as kind and helpful as possible, and make sure to provide sources.\n
+    '''
+        
+    context += question + "\n"
+    convo += "User: " + question + "\n"
 
     # fetch similar docs using query as search vector
-    top_k=5
+    top_k=10
     docs = []
     docs_content = []
+
+    # get similar docs while making sure there are no repeats 
     while len(docs) < top_k:
         similar_doc = index.query(vector=embedding_model.embed_query(question), filter={'contents' : {'$nin' : docs_content}}, top_k=1, include_metadata=True)
-        if len(similar_doc['matches']) == 0:
-            break
         docs.append(similar_doc['matches'][0])
         docs_content.append(similar_doc['matches'][0]['metadata']['content'])
 
-    # add to context string
-    context += f"Context for Question {question}\n"
-    tables = []
+    # process similar docs
     images = []
     for doc in docs:
         if doc['metadata']['type'] == 'text':
-            context += f"From source {doc['metadata']['source']}: {doc['metadata']['content']}\n"
-        
-        context += "Sources for the tables (in order): "
-        if doc['metadata']['type'] == 'table':
-            tables.append(doc['metadata']['content'])
-            context += doc['metadata']['source'] + ", "
+            context += f"\nFrom source {doc['metadata']['source']}: {doc['metadata']['content']}\n"
         context += "\n Sources for images (in order): "
         if doc['metadata']['type'] == 'image':
             images.append(doc['metadata']['content'])
             context += doc['metadata']['source'] + ", "
 
-    # make sure it only answers the most recent question
-    len_extra = len(f"\n Answer Questions: {question}")
-    context += f"\n Answer Questions: {question}"
+    # tmp main prompt for chatgpt
+    len_extra = len(f"\n Answer {question}, and provide sources")
+    context += f"\n Answer {question}, and provide sources"
     
-    # get header and payload
-    header, payload = make_json(context, images, tables, question, os.getenv('OPENAI_API_KEY'))
+    # get message
+    message = make_json(context, images, question)
     
-    # get answer
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=header, json=payload)
-    answer = response.json()['choices'][0]['message']['content']
+    # template for answer
+    class Summary(BaseModel):
+        summary: str
+
+    # get answer from chatgpt
+    response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                response_model=Summary,
+                messages=message
+        )
+    answer = response.summary
 
     # add answer to convo string
-    convo += "Agent: " + answer + "<br>"
+    convo += "Agent: " + answer + "\n"
 
-    # remove extra
+    # remove tmp prompt
     context = context[:-len_extra]
-    context += f"\nYour answer to question {question}: {answer}\n"
-    
+    context += f"\nYour answer to q{question}: {answer}\n"
+
     return convo, context
+
+
+        
 
         
