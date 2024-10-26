@@ -1,4 +1,4 @@
-# PDF Chatbot: Jaden Cohen Maker Portfolio Project 2
+# PDF Chatbot: Jaden Cohen MIT Maker Portfolio Project 2
 
 This project is a Python Flask web application that leverages the power of Pinecone for vector storage and ChatGPT embeddings to create a highly interactive custom agent. The primary goal of the agent is to ingest and understand PDF documents, allowing users to ask questions about the content and receive accurate, context-aware responses.
 
