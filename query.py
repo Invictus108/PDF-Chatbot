@@ -107,7 +107,10 @@ def query_AI(context, convo, question, openai_api_key,  pinecone_api_key):
     context = context[:-len_extra]
     context += f"\nYour answer to q{question}: {answer}\n"
 
-    return convo, context
+    temp = "User: " + question + "\n" + "Agent: " + answer + "\n"
+
+    #normally Conva
+    return temp, context
 
 
         

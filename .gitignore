@@ -1,1 +1,4 @@
 .env
+images
+__pycache__
+uploads
